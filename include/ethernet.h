@@ -12,7 +12,9 @@ typedef struct ether_hdr {
     uint8_t src[NET_MAC_LEN];  // 源mac地址
     uint16_t protocol16;       // 协议/长度
 } ether_hdr_t;
+
 #pragma pack()
+
 void ethernet_init();
 void ethernet_in(buf_t *buf);
 void ethernet_out(buf_t *buf, const uint8_t *mac, net_protocol_t protocol);
