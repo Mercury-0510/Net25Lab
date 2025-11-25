@@ -3,3 +3,5 @@
 - lab 2 以太网协议
 - lab 3 ARP协议
 - lab 4 路由器配置
+- lab 5 IPv4协议
+- lab 6 ICMP协议
