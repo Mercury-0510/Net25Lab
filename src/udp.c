@@ -17,6 +17,39 @@ map_t udp_table;
  */
 void udp_in(buf_t *buf, uint8_t *src_ip) {
     // TO-DO
+    if(buf->len < sizeof(udp_hdr_t)) {
+        return;
+    }
+    
+    udp_hdr_t *hdr = (udp_hdr_t *)buf->data;
+    
+    uint16_t src_port = swap16(hdr->src_port16);
+    uint16_t dst_port = swap16(hdr->dst_port16);
+    uint16_t total_len = swap16(hdr->total_len16);
+    
+    if(total_len > buf->len) {
+        return;
+    }
+    
+    uint16_t checksum = hdr->checksum16;
+    hdr->checksum16 = 0;
+    if(checksum != 0 && checksum != transport_checksum(NET_PROTOCOL_UDP, buf, src_ip, net_if_ip)) {
+        return;
+    }
+    hdr->checksum16 = checksum;
+    
+    udp_handler_t *handler = map_get(&udp_table, &dst_port);
+    if(handler == NULL) {
+        buf_add_header(buf, sizeof(ip_hdr_t));
+        icmp_unreachable(buf, src_ip, ICMP_CODE_PORT_UNREACH);
+        return;
+    }
+    
+    if(buf_remove_header(buf, sizeof(udp_hdr_t)) < 0) {
+        return;
+    }
+    
+    (*handler)(buf->data, buf->len, src_ip, src_port);
 }
 
 /**
@@ -29,6 +62,19 @@ void udp_in(buf_t *buf, uint8_t *src_ip) {
  */
 void udp_out(buf_t *buf, uint16_t src_port, uint8_t *dst_ip, uint16_t dst_port) {
     // TO-DO
+    if(buf_add_header(buf, NET_UDP_LEN) < 0) {
+        return;
+    }
+    
+    udp_hdr_t *hdr = (udp_hdr_t *)buf->data;
+    hdr->src_port16 = swap16(src_port);
+    hdr->dst_port16 = swap16(dst_port);
+    hdr->total_len16 = swap16(buf->len);
+    hdr->checksum16 = 0;
+
+    hdr->checksum16 = transport_checksum(NET_PROTOCOL_UDP, buf, net_if_ip, dst_ip);
+
+    ip_out(buf, dst_ip, NET_PROTOCOL_UDP);
 }
 
 /**

@@ -82,13 +82,13 @@ uint16_t checksum16(uint16_t *data, size_t len) {
 }
 
 #pragma pack(1)
-typedef struct peso_hdr {
+typedef struct pseudo_hdr {
     uint8_t src_ip[4];     // 源IP地址
     uint8_t dst_ip[4];     // 目的IP地址
     uint8_t placeholder;   // 必须置0,用于填充对齐
     uint8_t protocol;      // 协议号
     uint16_t total_len16;  // 整个数据包的长度
-} peso_hdr_t;
+} pseudo_hdr_t;
 #pragma pack()
 
 /**
@@ -101,5 +101,40 @@ typedef struct peso_hdr {
  * @return uint16_t 计算得到的16位校验和
  */
 uint16_t transport_checksum(uint8_t protocol, buf_t *buf, uint8_t *src_ip, uint8_t *dst_ip) {
-    // TO-DO
+    uint16_t udp_len = buf->len;
+    
+    uint8_t temp[sizeof(pseudo_hdr_t)];
+    memcpy(temp, buf->data - sizeof(pseudo_hdr_t), sizeof(pseudo_hdr_t));
+    
+    buf_add_header(buf, sizeof(pseudo_hdr_t));
+    
+    pseudo_hdr_t *pse_hdr = (pseudo_hdr_t *)buf->data;
+    memcpy(pse_hdr->src_ip, src_ip, NET_IP_LEN);
+    memcpy(pse_hdr->dst_ip, dst_ip, NET_IP_LEN);
+    pse_hdr->placeholder = 0;
+    pse_hdr->protocol = protocol;
+    pse_hdr->total_len16 = swap16(udp_len);
+    
+    int need_padding = (buf->len % 2) != 0;
+    if(need_padding) {
+        buf_add_padding(buf, 1);
+    }
+
+    uint16_t *data = (uint16_t *)buf->data;
+    uint32_t sum = 0;
+    for(size_t i = 0; i < buf->len / 2; i++) {
+        sum += data[i];
+        while(sum > 0xFFFF) {
+            sum = (sum & 0xFFFF) + (sum >> 16);
+        }
+    }
+    
+    if(need_padding) {
+        buf_remove_padding(buf, 1);
+    }
+    buf_remove_header(buf, sizeof(pseudo_hdr_t));
+    
+    memcpy(buf->data - sizeof(pseudo_hdr_t), temp, sizeof(pseudo_hdr_t));
+    
+    return ~sum;
 }

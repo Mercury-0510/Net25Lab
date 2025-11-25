@@ -82,9 +82,7 @@ void ip_fragment_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol, uint16_t 
         
         memcpy(fragment_buf.data, buf->data, ETHERNET_MAX_TRANSPORT_UNIT - sizeof(ip_hdr_t));
         
-        if(buf_add_header(&fragment_buf, sizeof(ip_hdr_t)) < 0) {
-            return;
-        }
+        buf_add_header(&fragment_buf, sizeof(ip_hdr_t));
         
         ip_hdr_t *hdr = (ip_hdr_t *)fragment_buf.data;
         ip_set_head(hdr, ETHERNET_MAX_TRANSPORT_UNIT, id, offset, 1, protocol, ip);
@@ -97,9 +95,7 @@ void ip_fragment_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol, uint16_t 
         
         ip_fragment_out(buf, ip, protocol, id, next_offset);
     } else {
-        if(buf_add_header(buf, sizeof(ip_hdr_t)) < 0) {
-            return;
-        }
+        buf_add_header(buf, sizeof(ip_hdr_t));
         
         ip_hdr_t *hdr = (ip_hdr_t *)buf->data;
         ip_set_head(hdr, buf->len, id, offset, 0, protocol, ip);
