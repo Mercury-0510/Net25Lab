@@ -42,7 +42,7 @@ void ethernet_out(buf_t *buf, const uint8_t *mac, net_protocol_t protocol) {
     }
 
     if (buf_add_header(buf, sizeof(ether_hdr_t)) < 0) {
-        return;  // 添加头部失败，返回
+        return;
     }
 
     ether_hdr_t *hdr = (ether_hdr_t *)buf->data;
