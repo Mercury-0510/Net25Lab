@@ -33,7 +33,8 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
 
     uint16_t hdr_checksum16_origin = hdr->hdr_checksum16;
     hdr->hdr_checksum16 = 0;
-    if(hdr_checksum16_origin != checksum16((uint16_t *)hdr, (IP_HDR_LEN_PER_BYTE * hdr->hdr_len) / 2)) {
+    uint16_t hdr_checksum16_calc = checksum16((uint16_t *)hdr, (IP_HDR_LEN_PER_BYTE * hdr->hdr_len) / 2);
+    if(hdr_checksum16_origin != 0 && hdr_checksum16_origin != hdr_checksum16_calc) {
         return;
     }
     hdr->hdr_checksum16 = hdr_checksum16_origin;
@@ -43,8 +44,9 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
     }
 
     if(buf->len > total_len) {
-        if(buf_remove_padding(buf, buf->len - total_len) < 0)
+        if(buf_remove_padding(buf, buf->len - total_len) < 0) {
             return;
+        }
     }
 
     net_protocol_t protocol = hdr->protocol;

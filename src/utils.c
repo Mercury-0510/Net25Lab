@@ -1,5 +1,5 @@
 #include "utils.h"
-
+#include "udp.h"
 #include "net.h"
 
 #include <stdio.h>
@@ -100,41 +100,84 @@ typedef struct pseudo_hdr {
  * @param dst_ip    目的IP地址
  * @return uint16_t 计算得到的16位校验和
  */
-uint16_t transport_checksum(uint8_t protocol, buf_t *buf, uint8_t *src_ip, uint8_t *dst_ip) {
-    uint16_t udp_len = buf->len;
-    
-    uint8_t temp[sizeof(pseudo_hdr_t)];
-    memcpy(temp, buf->data - sizeof(pseudo_hdr_t), sizeof(pseudo_hdr_t));
-    
-    buf_add_header(buf, sizeof(pseudo_hdr_t));
-    
-    pseudo_hdr_t *pse_hdr = (pseudo_hdr_t *)buf->data;
-    memcpy(pse_hdr->src_ip, src_ip, NET_IP_LEN);
-    memcpy(pse_hdr->dst_ip, dst_ip, NET_IP_LEN);
-    pse_hdr->placeholder = 0;
-    pse_hdr->protocol = protocol;
-    pse_hdr->total_len16 = swap16(udp_len);
-    
-    int need_padding = (buf->len % 2) != 0;
-    if(need_padding) {
-        buf_add_padding(buf, 1);
+uint16_t transport_checksum_in(uint8_t protocol, buf_t *buf, uint8_t *src_ip, uint8_t *dst_ip) {
+    // Determine segment length based on protocol
+    uint16_t seg_len = (protocol == NET_PROTOCOL_TCP)
+                           ? (uint16_t)buf->len
+                           : (uint16_t)((buf->data[4] << 8) | buf->data[5]);
+
+    uint32_t sum = 0;
+
+    // Pseudo header (network order, high byte first)
+    uint16_t ph1 = swap16((uint16_t)((src_ip[0] << 8) | src_ip[1]));
+    uint16_t ph2 = swap16((uint16_t)((src_ip[2] << 8) | src_ip[3]));
+    uint16_t ph3 = swap16((uint16_t)((dst_ip[0] << 8) | dst_ip[1]));
+    uint16_t ph4 = swap16((uint16_t)((dst_ip[2] << 8) | dst_ip[3]));
+    uint16_t ph5 = swap16((uint16_t)((0 << 8) | protocol));
+    uint16_t ph6 = swap16(seg_len);
+
+    sum += ph1;
+    sum += ph2;
+    sum += ph3;
+    sum += ph4;
+    sum += ph5;
+    sum += ph6;
+
+    while (sum > 0xFFFF) {
+        sum = (sum & 0xFFFF) + (sum >> 16);
     }
 
-    uint16_t *data = (uint16_t *)buf->data;
+    return sum;
+}
+
+/**
+ * @brief 计算传输层协议（如TCP/UDP）的校验和
+ *
+ * @param protocol  传输层协议号（如NET_PROTOCOL_UDP、NET_PROTOCOL_TCP）
+ * @param buf       待计算的数据包缓冲区
+ * @param src_ip    源IP地址
+ * @param dst_ip    目的IP地址
+ * @return uint16_t 计算得到的16位校验和
+ */
+uint16_t transport_checksum_out(uint8_t protocol, buf_t *buf, uint8_t *src_ip, uint8_t *dst_ip) {
+    // Segment length depends on protocol:
+    // - TCP: length = buf->len (TCP header + payload)
+    // - UDP: length from UDP header at offset 4 (network order)
+    uint16_t seg_len = (protocol == NET_PROTOCOL_TCP)
+                           ? (uint16_t)buf->len
+                           : (uint16_t)((buf->data[4] << 8) | buf->data[5]);
+
     uint32_t sum = 0;
-    for(size_t i = 0; i < buf->len / 2; i++) {
-        sum += data[i];
-        while(sum > 0xFFFF) {
+
+    // Pseudo header (network order)
+    sum += (src_ip[0] << 8) | src_ip[1];
+    sum += (src_ip[2] << 8) | src_ip[3];
+    sum += (dst_ip[0] << 8) | dst_ip[1];
+    sum += (dst_ip[2] << 8) | dst_ip[3];
+    sum += (0 << 8) | protocol;
+    sum += seg_len;
+
+    while (sum > 0xFFFF) {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+
+    // UDP header + payload (network order words)
+    const uint8_t *data = buf->data;
+    size_t i = 0;
+    for (; i + 1 < seg_len; i += 2) {
+        sum += (data[i] << 8) | data[i + 1];
+        while (sum > 0xFFFF) {
             sum = (sum & 0xFFFF) + (sum >> 16);
         }
     }
-    
-    if(need_padding) {
-        buf_remove_padding(buf, 1);
+    if (seg_len & 1) {
+        // Last odd byte is high-order; low-order padded with zero
+        sum += ((uint16_t)data[i] << 8);
+        while (sum > 0xFFFF) {
+            sum = (sum & 0xFFFF) + (sum >> 16);
+        }
     }
-    buf_remove_header(buf, sizeof(pseudo_hdr_t));
-    
-    memcpy(buf->data - sizeof(pseudo_hdr_t), temp, sizeof(pseudo_hdr_t));
-    
-    return ~sum;
+
+    uint16_t cs = (uint16_t)(~sum & 0xFFFF);
+    return swap16(cs);
 }
