@@ -70,7 +70,6 @@ uint8_t ip_prefix_match(uint8_t *ipa, uint8_t *ipb) {
  * @return uint16_t 校验和
  */
 uint16_t checksum16(uint16_t *data, size_t len) {
-    // TO-DO
     uint32_t sum = 0;
     for(int loop = 0; loop < len; loop++) {
         sum += data[loop];
@@ -148,7 +147,6 @@ uint16_t transport_checksum_out(uint8_t protocol, buf_t *buf, uint8_t *src_ip, u
                            : (uint16_t)((buf->data[4] << 8) | buf->data[5]);
 
     uint32_t sum = 0;
-
     // Pseudo header (network order)
     sum += (src_ip[0] << 8) | src_ip[1];
     sum += (src_ip[2] << 8) | src_ip[3];
@@ -177,7 +175,6 @@ uint16_t transport_checksum_out(uint8_t protocol, buf_t *buf, uint8_t *src_ip, u
             sum = (sum & 0xFFFF) + (sum >> 16);
         }
     }
-
     uint16_t cs = (uint16_t)(~sum & 0xFFFF);
     return swap16(cs);
 }

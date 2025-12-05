@@ -20,9 +20,7 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
     if(buf->len < sizeof(ip_hdr_t)) {
         return;
     }
-
     ip_hdr_t *hdr = (ip_hdr_t *)buf->data;
-
     uint16_t total_len = swap16(hdr->total_len16);
     if(hdr->version != IP_VERSION_4 || 
        total_len > buf->len || 
@@ -30,34 +28,29 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
        hdr->ttl == 0) {
         return;
     }
-
     uint16_t hdr_checksum16_origin = hdr->hdr_checksum16;
     hdr->hdr_checksum16 = 0;
-    uint16_t hdr_checksum16_calc = checksum16((uint16_t *)hdr, (IP_HDR_LEN_PER_BYTE * hdr->hdr_len) / 2);
+    uint16_t hdr_checksum16_calc = checksum16((uint16_t *)hdr,
+                                         (IP_HDR_LEN_PER_BYTE * hdr->hdr_len) / 2);
     if(hdr_checksum16_origin != 0 && hdr_checksum16_origin != hdr_checksum16_calc) {
         return;
     }
     hdr->hdr_checksum16 = hdr_checksum16_origin;
-
     if(memcmp(hdr->dst_ip, net_if_ip, NET_IP_LEN) != 0) {
         return;
     }
-
     if(buf->len > total_len) {
         if(buf_remove_padding(buf, buf->len - total_len) < 0) {
             return;
         }
     }
-
     net_protocol_t protocol = hdr->protocol;
     uint8_t src_ip[NET_IP_LEN];
     memcpy(src_ip, hdr->src_ip, NET_IP_LEN);
     uint8_t hdr_len = hdr->hdr_len;
-
     if(buf_remove_header(buf, IP_HDR_LEN_PER_BYTE * hdr_len) < 0) {
         return;
     }
-
     if(net_in(buf, protocol, src_ip) < 0) {
         // 协议不可达，恢复IP报头后发送ICMP
         if(buf_add_header(buf, IP_HDR_LEN_PER_BYTE * hdr_len) >= 0) {
@@ -75,8 +68,8 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
  * @param offset 分片offset，必须被8整除
  * @param mf 分片mf标志，是否有下一个分片
  */
-void ip_fragment_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol, uint16_t id, uint16_t offset) {
-    // TO-DO
+void ip_fragment_out(buf_t *buf, uint8_t *ip, 
+                    net_protocol_t protocol, uint16_t id, uint16_t offset) {
     if(buf->len > ETHERNET_MAX_TRANSPORT_UNIT - sizeof(ip_hdr_t)) {
         
         buf_t fragment_buf;
@@ -114,7 +107,6 @@ void ip_fragment_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol, uint16_t 
  * @param protocol 上层协议
  */
 void ip_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol) {
-    // TO-DO
     ip_fragment_out(buf, ip, protocol, ip_id, 0);
     ip_id++;
 }

@@ -36,7 +36,8 @@ void ethernet_in(buf_t *buf) {
  * @param mac 目标MAC地址
  * @param protocol 上层协议
  */
-void ethernet_out(buf_t *buf, const uint8_t *mac, net_protocol_t protocol) {
+void ethernet_out(buf_t *buf, const uint8_t *mac, 
+                        net_protocol_t protocol) {
     if (buf->len < 46) {
         buf_add_padding(buf, 46 - buf->len);
     }

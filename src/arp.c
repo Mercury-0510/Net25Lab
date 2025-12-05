@@ -48,24 +48,20 @@ void arp_req(uint8_t *target_ip) {
     if (target_ip == NULL) {
         return;
     }
-
     // 初始化缓冲区
     if (buf_init(&txbuf, sizeof(arp_pkt_t)) == -1) {
         return;
     }
-
     arp_pkt_t *arp_pkt = (arp_pkt_t *)txbuf.data;
 
     if (arp_pkt == NULL) {
         return;
     }
-
     // 设置ARP包头部
     arp_pkt->hw_type16 = swap16(ARP_HW_ETHER);
     arp_pkt->pro_type16 = swap16(NET_PROTOCOL_IP);
     arp_pkt->hw_len = NET_MAC_LEN;
     arp_pkt->pro_len = NET_IP_LEN;
-
     // 设置发送方信息
     if (net_if_ip != NULL && net_if_mac != NULL) {
         memcpy(arp_pkt->sender_ip, net_if_ip, NET_IP_LEN);
@@ -73,7 +69,6 @@ void arp_req(uint8_t *target_ip) {
     } else {
         return;
     }
-
     memset(arp_pkt->target_mac, 0, NET_MAC_LEN);
     arp_pkt->opcode16 = swap16(ARP_REQUEST);
     memcpy(arp_pkt->target_ip, target_ip, NET_IP_LEN);
@@ -91,24 +86,20 @@ void arp_resp(uint8_t *target_ip, uint8_t *target_mac) {
     if (target_ip == NULL || target_mac == NULL) {
         return;
     }
-
     // 初始化缓冲区
     if (buf_init(&txbuf, sizeof(arp_pkt_t)) == -1) {
         return;
     }
-
     arp_pkt_t *arp_pkt = (arp_pkt_t *)txbuf.data;
 
     if (arp_pkt == NULL) {
         return;
     }
-
     // 设置ARP包头部
     arp_pkt->hw_type16 = swap16(ARP_HW_ETHER);
     arp_pkt->pro_type16 = swap16(NET_PROTOCOL_IP);
     arp_pkt->hw_len = NET_MAC_LEN;
     arp_pkt->pro_len = NET_IP_LEN;
-
     // 设置发送方信息
     if (net_if_ip != NULL && net_if_mac != NULL) {
         memcpy(arp_pkt->sender_ip, net_if_ip, NET_IP_LEN);
@@ -116,7 +107,6 @@ void arp_resp(uint8_t *target_ip, uint8_t *target_mac) {
     } else {
         return;
     }
-
     memset(arp_pkt->target_mac, 0, NET_MAC_LEN);
     arp_pkt->opcode16 = swap16(ARP_REPLY);
     memcpy(arp_pkt->target_ip, target_ip, NET_IP_LEN);
@@ -135,29 +125,25 @@ void arp_in(buf_t *buf, uint8_t *src_mac) {
     if (buf == NULL || buf->data == NULL) {
         return;
     }
-
     if (buf->len < sizeof(arp_pkt_t)) {
         return;
     }
 
     arp_pkt_t *arp_pkt = (arp_pkt_t *)buf->data;
-
     // 验证ARP包格式
-    if (swap16(arp_pkt->hw_type16) != ARP_HW_ETHER || swap16(arp_pkt->pro_type16) != NET_PROTOCOL_IP) {
+    if (swap16(arp_pkt->hw_type16) != ARP_HW_ETHER 
+        || swap16(arp_pkt->pro_type16) != NET_PROTOCOL_IP) {
         return;
     }
-
-    if (arp_pkt->hw_len != NET_MAC_LEN || arp_pkt->pro_len != NET_IP_LEN) {
+    if (arp_pkt->hw_len != NET_MAC_LEN 
+        || arp_pkt->pro_len != NET_IP_LEN) {
         return;
     }
-
     if (net_if_ip == NULL) {
         return;
     }
-
     // 更新ARP表
     map_set(&arp_table, arp_pkt->sender_ip, arp_pkt->sender_mac);
-
     // 处理ARP请求或响应
     uint16_t opcode = swap16(arp_pkt->opcode16);
     if (opcode == ARP_REQUEST) {
